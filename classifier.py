@@ -236,7 +236,7 @@ def load_messages(filepath: Path) -> list[str]:
             if not line or line.startswith("#"):
                 continue
             # Убираем ведущую нумерацию вида "1) ", "1. ", "[1] ", "(1) ", "1 - ", "1: "
-            cleaned = re.sub(r"^\s*(?:\[\d+\]|\(\d+\)|\d+[\)\.\:\-–—])\s*", "", line)
+            cleaned = re.sub(r"^\s*(?:\[\s*\d+\s*\]|\(\s*\d+\s*\)|\d+\s*[-).:–—])\s*", "", line)
             cleaned = cleaned.strip()
             if cleaned:
                 messages.append(cleaned)
