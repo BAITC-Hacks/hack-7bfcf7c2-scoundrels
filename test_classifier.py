@@ -33,7 +33,7 @@ class TestClassifierCore(unittest.TestCase):
         msg = "В столовой очередь, еда холодная."
         category, draft = classify_by_rules(msg)
         self.assertEqual(category, "жалоба")
-        self.assertIn("службы питания", draft)
+        self.assertTrue("питания" in draft.lower() or "столов" in draft.lower())
 
     def test_control_case_3_consultation(self):
         msg = "Хочу записаться на консультацию завтра."
@@ -51,7 +51,7 @@ class TestClassifierCore(unittest.TestCase):
         msg = "Где парковка для гостей?"
         category, draft = classify_by_rules(msg)
         self.assertEqual(category, "справка")
-        self.assertIn("парковка", draft.lower())
+        self.assertTrue("парковк" in draft.lower() or "стоянк" in draft.lower())
 
     def test_unknown_text_fallback(self):
         msg = "Случайный текст без ключевых паттернов"

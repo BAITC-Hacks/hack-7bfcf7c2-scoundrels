@@ -102,12 +102,18 @@ RULES = [
 
 def classify_by_rules(text: str) -> tuple[str, str]:
     """Классификация текста обращения и подбор ответа на основе регулярных выражений."""
-    # Попытка подключить внешний модуль rules_data, если он предоставлен Участником №1
-    try:
-        from rules_data import classify_text_by_rules  # type: ignore
-        return classify_text_by_rules(text)
-    except (ImportError, AttributeError):
-        pass
+    # Попытка подключить внешний модуль rules или rules_data (от Участника №1)
+    for module_name in ("rules", "rules_data"):
+        try:
+            mod = __import__(module_name)
+            if hasattr(mod, "classify_text_by_rules"):
+                res = mod.classify_text_by_rules(text)
+                if hasattr(res, "category") and hasattr(res, "draft_reply"):
+                    return str(res.category), str(res.draft_reply)
+                elif isinstance(res, (tuple, list)) and len(res) >= 2:
+                    return str(res[0]), str(res[1])
+        except (ImportError, AttributeError, Exception):
+            pass
 
     lower_text = text.lower()
 
@@ -175,6 +181,15 @@ def classify_by_llm(
 }}
 """
 
+    # Проверяем наличие специализированных промптов от Участника №1
+    try:
+        import prompts
+        system_content = getattr(prompts, "SYSTEM_PROMPT", "You are a helpful assistant that outputs only valid JSON.")
+        user_content = prompts.build_user_prompt(text) if hasattr(prompts, "build_user_prompt") else prompt
+    except Exception:
+        system_content = "You are a helpful assistant that outputs only valid JSON."
+        user_content = prompt
+
     url = f"{base_url.rstrip('/')}/chat/completions"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
@@ -183,8 +198,8 @@ def classify_by_llm(
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": "You are a helpful assistant that outputs only valid JSON."},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": user_content}
         ],
         "temperature": 0.2
     }
@@ -195,6 +210,14 @@ def classify_by_llm(
         with urllib.request.urlopen(req, timeout=timeout) as response:
             result = json.loads(response.read().decode("utf-8"))
             content = result["choices"][0]["message"]["content"].strip()
+
+            # Попытка валидации через модуль prompts
+            try:
+                import prompts
+                if hasattr(prompts, "parse_and_validate_llm_response"):
+                    return prompts.parse_and_validate_llm_response(content)
+            except Exception:
+                pass
 
             # Извлекаем JSON даже если LLM обернула его в markdown или добавила текст
             json_match = re.search(r"\{[\s\S]*\}", content)
